@@ -87,19 +87,19 @@ export function FavoriteVoicesButton({ selectedVoice, onSelect }: FavoriteVoices
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
-          className="h-9 gap-2 px-3"
+          size="icon"
+          className="h-9 w-9 relative"
           title="Favorite voices"
+          aria-label="Favorite voices"
           data-testid="button-favorite-voices"
         >
           <Star
-            className={`h-3.5 w-3.5 ${count > 0 ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`}
+            className={`h-4 w-4 ${count > 0 ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`}
           />
-          <span className="text-xs font-medium hidden sm:inline">Favorites</span>
           {count > 0 && (
             <Badge
               variant="secondary"
-              className="h-4 px-1.5 text-[10px] font-mono rounded"
+              className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] font-mono rounded-full"
               data-testid="badge-favorite-count"
             >
               {count}
