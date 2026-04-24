@@ -19,7 +19,7 @@ export default function Home() {
   } = useStore();
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="flex flex-col h-screen w-full bg-background overflow-hidden">
       <Sidebar
         projects={projects}
         trash={trash}
@@ -30,17 +30,17 @@ export default function Home() {
         restoreFromTrash={restoreFromTrash}
         deletePermanently={deletePermanently}
       />
-      <main className="flex-1 h-screen overflow-y-auto relative bg-dot-pattern">
+      <main className="flex-1 overflow-y-auto relative bg-dot-pattern">
         {activeProject ? (
           <Editor
-            key={activeProject.id} // force remount on project change
+            key={activeProject.id}
             project={activeProject}
             updateProject={updateProject}
             closeProject={() => setActiveProject(null)}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-in fade-in duration-700">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, duration: 0.4 }}
@@ -50,7 +50,7 @@ export default function Home() {
             </motion.div>
             <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">Select a project</h2>
             <p className="text-muted-foreground max-w-sm">
-              Choose a project from the sidebar or create a new one to start writing. Your work is always auto-saved locally.
+              Choose a project from the tab bar above or create a new one to start writing. Your work is always auto-saved locally.
             </p>
           </div>
         )}

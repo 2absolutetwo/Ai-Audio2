@@ -509,7 +509,7 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
                 return (
                   <div
                     key={index}
-                    className="flex items-center gap-3 bg-background border border-emerald-400/60 rounded-lg px-4 py-3 shadow-sm hover:border-emerald-500 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-300"
+                    className="flex items-center gap-3 bg-background border border-emerald-400/60 rounded-lg px-4 shadow-sm hover:border-emerald-500 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-300 h-14"
                   >
                     <div className="text-muted-foreground/60 font-mono text-sm select-none shrink-0">
                       {String(index + 1).padStart(3, "0")}.
