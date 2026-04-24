@@ -283,7 +283,10 @@ export function VoicePicker({ selectedVoice, onSelect }: VoicePickerProps) {
                         aria-label={fav ? "Remove from favorites" : "Add to favorites"}
                         data-testid={`button-favorite-${v.ShortName}`}
                       >
-                        <Star className={`h-4 w-4 ${fav ? "fill-current" : ""}`} />
+                        <Star
+                          strokeWidth={fav ? 1.5 : 2}
+                          className={`h-4 w-4 ${fav ? "fill-amber-400" : ""}`}
+                        />
                       </button>
                     </div>
                   );
@@ -318,7 +321,7 @@ export function VoicePicker({ selectedVoice, onSelect }: VoicePickerProps) {
               {filteredFavorites.length > 0 && (
                 <div className="mb-1">
                   <div className="px-2.5 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                    <Star strokeWidth={1.5} className="h-3 w-3 fill-amber-400 text-amber-500" />
                     Favorites
                   </div>
                   {filteredFavorites.map((v) => {
@@ -358,7 +361,7 @@ export function VoicePicker({ selectedVoice, onSelect }: VoicePickerProps) {
                           aria-label="Remove from favorites"
                           data-testid={`button-unfavorite-${v.ShortName}`}
                         >
-                          <Star className="h-4 w-4 fill-current" />
+                          <Star strokeWidth={1.5} className="h-4 w-4 fill-amber-400" />
                         </button>
                       </div>
                     );
