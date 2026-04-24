@@ -184,6 +184,47 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
     saveHistory(content);
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>, index: number) => {
+    const pastedText = e.clipboardData.getData("text");
+    if (!pastedText) return;
+
+    const lines = pastedText.split(/\r?\n/);
+    const sentences: string[] = [];
+    for (const line of lines) {
+      if (line.trim() === "") continue;
+      const parts = line.split(/(?<=[.!?])\s+(?=[A-Z0-9])/);
+      sentences.push(...parts.map((s) => s.trim()).filter((s) => s));
+    }
+
+    if (sentences.length <= 1) return;
+
+    e.preventDefault();
+    const input = e.target as HTMLInputElement;
+    const cursorPos = input.selectionStart || 0;
+    const currentText = content[index];
+    const before = currentText.slice(0, cursorPos);
+    const after = currentText.slice(input.selectionEnd || cursorPos);
+
+    const newContent = [...content];
+    const firstSentence = before + sentences[0];
+    const lastSentence = sentences[sentences.length - 1] + after;
+    const middle = sentences.slice(1, -1);
+
+    newContent.splice(index, 1, firstSentence, ...middle, lastSentence);
+    setContent(newContent);
+    saveHistory(newContent);
+
+    setTimeout(() => {
+      const nextIndex = index + sentences.length - 1;
+      const nextInput = containerRef.current?.querySelector(`input[data-index="${nextIndex}"]`) as HTMLInputElement;
+      if (nextInput) {
+        nextInput.focus();
+        const pos = sentences[sentences.length - 1].length;
+        nextInput.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -420,6 +461,7 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
                     onChange={(e) => handleLineChange(index, e.target.value)}
                     onBlur={handleLineBlur}
                     onKeyDown={(e) => handleKeyDown(e, index)}
+                    onPaste={(e) => handlePaste(e, index)}
                     className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base py-1.5 pl-3 min-h-[32px] rounded-md focus:bg-muted/30 transition-colors"
                     placeholder={index === 0 && content.length === 1 ? "Start typing..." : ""}
                   />
