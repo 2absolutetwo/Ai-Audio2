@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "favorite-voices";
 
@@ -14,24 +14,53 @@ function readFavorites(): string[] {
   }
 }
 
-export function useFavoriteVoices() {
-  const [favorites, setFavorites] = useState<string[]>(() => readFavorites());
+function writeFavorites(next: string[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+}
 
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setFavorites(readFavorites());
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+let currentFavorites: string[] = readFavorites();
+const listeners = new Set<() => void>();
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites));
-    } catch {
-      // ignore
+function emit() {
+  for (const l of listeners) l();
+}
+
+function setFavorites(next: string[]) {
+  currentFavorites = next;
+  writeFavorites(next);
+  emit();
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot() {
+  return currentFavorites;
+}
+
+function getServerSnapshot() {
+  return currentFavorites;
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY) {
+      currentFavorites = readFavorites();
+      emit();
     }
-  }, [favorites]);
+  });
+}
+
+export function useFavoriteVoices() {
+  const favorites = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const isFavorite = useCallback(
     (shortName: string) => favorites.includes(shortName),
@@ -39,15 +68,17 @@ export function useFavoriteVoices() {
   );
 
   const toggleFavorite = useCallback((shortName: string) => {
-    setFavorites((prev) =>
-      prev.includes(shortName)
-        ? prev.filter((x) => x !== shortName)
-        : [...prev, shortName],
-    );
+    const prev = currentFavorites;
+    const next = prev.includes(shortName)
+      ? prev.filter((x) => x !== shortName)
+      : [...prev, shortName];
+    setFavorites(next);
   }, []);
 
   const removeFavorite = useCallback((shortName: string) => {
-    setFavorites((prev) => prev.filter((x) => x !== shortName));
+    const prev = currentFavorites;
+    if (!prev.includes(shortName)) return;
+    setFavorites(prev.filter((x) => x !== shortName));
   }, []);
 
   return { favorites, isFavorite, toggleFavorite, removeFavorite };
