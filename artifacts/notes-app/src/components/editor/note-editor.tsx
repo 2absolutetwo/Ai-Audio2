@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, SkipForward, RotateCcw, CloudDownload } from "lucide-react";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, SkipForward, RotateCcw, CloudDownload, Music } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { VoicePicker } from "./voice-picker";
@@ -125,6 +125,37 @@ function LineEditor({ editorKey, value, onChange, placeholder }: LineEditorProps
 interface AudioEntry {
   url: string;
   text: string;
+  sizeBytes: number;
+  durationSeconds: number;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function formatDuration(seconds: number): string {
+  if (!isFinite(seconds) || seconds <= 0) return "0.00s";
+  return `${seconds.toFixed(2)}s`;
+}
+
+function getAudioDuration(url: string): Promise<number> {
+  return new Promise((resolve) => {
+    const a = new Audio();
+    a.preload = "metadata";
+    const cleanup = () => {
+      a.onloadedmetadata = null;
+      a.onerror = null;
+    };
+    a.onloadedmetadata = () => {
+      const d = a.duration;
+      cleanup();
+      resolve(isFinite(d) ? d : 0);
+    };
+    a.onerror = () => { cleanup(); resolve(0); };
+    a.src = url;
+  });
 }
 
 interface AudioPoolProps {
@@ -183,7 +214,8 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const entry = { url, text };
+    const durationSeconds = await getAudioDuration(url);
+    const entry: AudioEntry = { url, text, sizeBytes: blob.size, durationSeconds };
     poolAudioRef.current[index] = entry;
     setPoolAudio((prev) => ({ ...prev, [index]: entry }));
     return url;
@@ -372,7 +404,10 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
             if (!line.trim()) return null;
             const isLoading = loadingIndex === index;
             const isPlaying = playingIndex === index;
-            const isCached = !!poolAudio[index];
+            const cachedEntry = poolAudio[index];
+            const isCached = !!cachedEntry;
+            const num = String(index + 1).padStart(3, "0");
+            const filename = `note-${num}.mp3`;
             return (
               <div
                 key={index}
@@ -386,24 +421,41 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
                 }`}
               >
                 <div className="text-muted-foreground/60 font-mono text-xs select-none shrink-0 w-8 text-right">
-                  {String(index + 1).padStart(3, "0")}
+                  {num}
                 </div>
-                {isCached && !isPlaying && !isLoading && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Cached" />
-                )}
-                {isPlaying && (
-                  <div className="flex gap-0.5 items-end shrink-0">
-                    {[1, 2, 3].map((i) => (
-                      <div
-                        key={i}
-                        className="w-0.5 bg-emerald-500 rounded-full animate-bounce"
-                        style={{ height: `${6 + i * 3}px`, animationDelay: `${i * 0.1}s` }}
-                      />
-                    ))}
-                  </div>
-                )}
-                {isLoading && <Loader2 size={12} className="animate-spin text-emerald-500 shrink-0" />}
-                <p className="flex-1 text-sm text-foreground truncate">{line}</p>
+                <div className={`shrink-0 w-9 h-9 rounded-md flex items-center justify-center ${
+                  isPlaying || isCached
+                    ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-600"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {isLoading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : isPlaying ? (
+                    <div className="flex gap-0.5 items-end">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="w-0.5 bg-emerald-500 rounded-full animate-bounce"
+                          style={{ height: `${4 + i * 2}px`, animationDelay: `${i * 0.1}s` }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <Music size={14} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{filename}</p>
+                  {isCached ? (
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      AUDIO · {formatBytes(cachedEntry.sizeBytes)} · {formatDuration(cachedEntry.durationSeconds)}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground/70 truncate">
+                      {isLoading ? "Generating..." : "Not cached"}
+                    </p>
+                  )}
+                </div>
                 <button
                   onClick={() => playSingle(index)}
                   disabled={isAutoPlaying}
