@@ -148,10 +148,11 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
     return () => {
       autoPlayRef.current = false;
       if (audioRef.current) {
+        audioRef.current.onerror = null;
+        audioRef.current.onended = null;
         audioRef.current.pause();
         audioRef.current.src = "";
       }
-      Object.values(poolAudio).forEach((e) => URL.revokeObjectURL(e.url));
     };
   }, []);
 
@@ -159,6 +160,8 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
     autoPlayRef.current = false;
     setIsAutoPlaying(false);
     if (audioRef.current) {
+      audioRef.current.onerror = null;
+      audioRef.current.onended = null;
       audioRef.current.pause();
       audioRef.current.src = "";
       audioRef.current = null;
@@ -266,11 +269,11 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
           <ListMusic size={14} className="text-emerald-500" />
           <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Audio Pool</span>
           <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-            total : {total}
+            মোট : {total}
           </span>
           {cached > 0 && (
             <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded-full">
-              {cached} cached
+              {cached}টি তৈরি
             </span>
           )}
         </div>
@@ -284,16 +287,16 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
             }`}
           >
             {isAutoPlaying ? (
-              <><Square size={10} className="fill-current" /> Stop</>
+              <><Square size={10} className="fill-current" /> বন্ধ করুন</>
             ) : (
-              <><SkipForward size={10} /> Auto Play</>
+              <><SkipForward size={10} /> সব Play করুন</>
             )}
           </button>
           <button
             onClick={resetPool}
             className="flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-all"
           >
-            <RotateCcw size={10} /> Reset
+            <RotateCcw size={10} /> রিসেট
           </button>
         </div>
       </div>
@@ -395,6 +398,8 @@ export function Editor() {
 
   const stopPlayback = React.useCallback(() => {
     if (audioRef.current) {
+      audioRef.current.onerror = null;
+      audioRef.current.onended = null;
       audioRef.current.pause();
       audioRef.current.src = "";
       audioRef.current = null;
