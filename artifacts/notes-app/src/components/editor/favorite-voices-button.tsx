@@ -3,7 +3,6 @@ import { Star, Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { useFavoriteVoices } from "@/hooks/use-favorite-voices";
 import type { EdgeVoice } from "./voice-picker";
 
@@ -97,15 +96,6 @@ export function FavoriteVoicesButton({ selectedVoice, onSelect }: FavoriteVoices
             strokeWidth={count > 0 ? 1.5 : 2}
             className={`h-4 w-4 ${count > 0 ? "fill-amber-400 text-amber-500" : "text-muted-foreground"}`}
           />
-          {count > 0 && (
-            <Badge
-              variant="secondary"
-              className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 text-[10px] font-mono rounded-full border border-background shadow-sm"
-              data-testid="badge-favorite-count"
-            >
-              {count}
-            </Badge>
-          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0 overflow-hidden" align="end" sideOffset={6}>
