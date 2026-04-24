@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, SkipForward, RotateCcw } from "lucide-react";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, SkipForward, RotateCcw, CloudDownload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { VoicePicker } from "./voice-picker";
@@ -137,10 +137,13 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [isLoadingPool, setIsLoadingPool] = useState(false);
+  const [loadProgress, setLoadProgress] = useState({ done: 0, total: 0 });
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoPlayRef = useRef(false);
-  const currentAutoIndexRef = useRef<number>(0);
+  const loadPoolRef = useRef(false);
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const poolAudioRef = useRef<Record<number, AudioEntry>>({});
 
   const validLines = lines.filter((l) => l.trim());
 
@@ -171,7 +174,7 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
   };
 
   const fetchAudio = async (index: number, text: string): Promise<string | null> => {
-    if (poolAudio[index]) return poolAudio[index].url;
+    if (poolAudioRef.current[index]) return poolAudioRef.current[index].url;
     const res = await fetch(`${import.meta.env.BASE_URL}api/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -180,8 +183,40 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    setPoolAudio((prev) => ({ ...prev, [index]: { url, text } }));
+    const entry = { url, text };
+    poolAudioRef.current[index] = entry;
+    setPoolAudio((prev) => ({ ...prev, [index]: entry }));
     return url;
+  };
+
+  const loadPool = async () => {
+    if (isLoadingPool) {
+      loadPoolRef.current = false;
+      setIsLoadingPool(false);
+      setLoadProgress({ done: 0, total: 0 });
+      return;
+    }
+    const validEntries = lines.map((l, i) => ({ text: l, i })).filter((x) => x.text.trim());
+    if (validEntries.length === 0) { toast.error("কোনো লাইন নেই"); return; }
+    loadPoolRef.current = true;
+    setIsLoadingPool(true);
+    setLoadProgress({ done: 0, total: validEntries.length });
+    let done = 0;
+    for (const entry of validEntries) {
+      if (!loadPoolRef.current) break;
+      try {
+        await fetchAudio(entry.i, entry.text);
+        done++;
+        setLoadProgress({ done, total: validEntries.length });
+        itemRefs.current[entry.i]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch {
+        // skip failed lines silently
+      }
+    }
+    loadPoolRef.current = false;
+    setIsLoadingPool(false);
+    if (done === validEntries.length) toast.success(`সব ${done}টি audio pool-এ save হয়েছে!`);
+    else toast.success(`${done}টি audio pool-এ save হয়েছে`);
   };
 
   const playSingle = async (index: number) => {
@@ -253,10 +288,14 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
   };
 
   const resetPool = () => {
+    loadPoolRef.current = false;
+    setIsLoadingPool(false);
+    setLoadProgress({ done: 0, total: 0 });
     stopAll();
-    Object.values(poolAudio).forEach((e) => URL.revokeObjectURL(e.url));
+    Object.values(poolAudioRef.current).forEach((e) => URL.revokeObjectURL(e.url));
+    poolAudioRef.current = {};
     setPoolAudio({});
-    toast.success("Audio pool cleared");
+    toast.success("Pool রিসেট হয়েছে");
   };
 
   const total = validLines.length;
@@ -264,7 +303,7 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
 
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col" style={{ maxHeight: "340px" }}>
-      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl">
+      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <ListMusic size={14} className="text-emerald-500" />
           <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Audio Pool</span>
@@ -273,14 +312,36 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
           </span>
           {cached > 0 && (
             <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded-full">
-              {cached}টি তৈরি
+              {cached}টি ready
+            </span>
+          )}
+          {isLoadingPool && (
+            <span className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+              <Loader2 size={8} className="animate-spin" />
+              {loadProgress.done}/{loadProgress.total} loading...
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={startAutoPlay}
+            onClick={loadPool}
             className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full transition-all ${
+              isLoadingPool
+                ? "bg-orange-100 text-orange-600 dark:bg-orange-950 hover:bg-orange-200"
+                : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400 hover:bg-blue-200"
+            }`}
+            disabled={isAutoPlaying}
+          >
+            {isLoadingPool ? (
+              <><Square size={10} className="fill-current" /> বন্ধ করুন</>
+            ) : (
+              <><CloudDownload size={10} /> Load Pool</>
+            )}
+          </button>
+          <button
+            onClick={startAutoPlay}
+            disabled={isLoadingPool || cached === 0}
+            className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full transition-all disabled:opacity-40 ${
               isAutoPlaying
                 ? "bg-red-100 text-red-600 dark:bg-red-950 hover:bg-red-200"
                 : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:bg-emerald-200"
