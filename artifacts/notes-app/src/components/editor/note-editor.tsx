@@ -364,8 +364,8 @@ export function Editor() {
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto w-full p-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Voice controls row */}
-      <div className="flex items-center justify-end gap-2">
+      {/* Top card with Favorites and Language Search */}
+      <div className="bg-card border border-border rounded-xl shadow-sm px-4 py-2.5 flex items-center justify-end gap-2">
         <FavoriteVoicesButton selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
         <VoicePicker selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
       </div>
