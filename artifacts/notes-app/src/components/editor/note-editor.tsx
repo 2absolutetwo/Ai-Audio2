@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, RotateCcw, CloudDownload, Music } from "lucide-react";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, RotateCcw, CloudDownload, Music, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { VoicePicker } from "./voice-picker";
@@ -709,6 +709,15 @@ export function Editor() {
     }
   };
 
+  const handleCancelAll = () => {
+    stopPlayback();
+    setContent([""]);
+    setHistory([[""]]);
+    setHistoryIndex(0);
+    setIsCutView(false);
+    toast.success("সব cancel হয়েছে");
+  };
+
   const totalLines = content.length;
   const totalPtu = (content.join("\n").match(/[.?।]/g) || []).length;
 
@@ -733,6 +742,9 @@ export function Editor() {
             </span>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={handleCancelAll} title="Cancel all (clear both cards)" className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950 text-muted-foreground hover:text-red-600 transition-colors border border-transparent hover:border-red-300">
+              <X size={14} />
+            </button>
             <button onClick={handleCopy} title="Copy all text" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
               <Copy size={14} />
             </button>
