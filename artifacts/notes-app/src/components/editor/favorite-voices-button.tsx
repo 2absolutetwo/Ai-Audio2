@@ -94,12 +94,13 @@ export function FavoriteVoicesButton({ selectedVoice, onSelect }: FavoriteVoices
           data-testid="button-favorite-voices"
         >
           <Star
-            className={`h-4 w-4 ${count > 0 ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`}
+            strokeWidth={count > 0 ? 1.5 : 2}
+            className={`h-4 w-4 ${count > 0 ? "fill-amber-400 text-amber-500" : "text-muted-foreground"}`}
           />
           {count > 0 && (
             <Badge
               variant="secondary"
-              className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] font-mono rounded-full"
+              className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 text-[10px] font-mono rounded-full border border-background shadow-sm"
               data-testid="badge-favorite-count"
             >
               {count}
@@ -109,7 +110,7 @@ export function FavoriteVoicesButton({ selectedVoice, onSelect }: FavoriteVoices
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0 overflow-hidden" align="end" sideOffset={6}>
         <div className="px-3 py-2 border-b flex items-center gap-2">
-          <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+          <Star strokeWidth={1.5} className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
           <span className="text-sm font-semibold">Favorite voices</span>
           {count > 0 && (
             <span className="ml-auto text-[11px] text-muted-foreground">{count} saved</span>
