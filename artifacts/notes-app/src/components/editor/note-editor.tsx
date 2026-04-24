@@ -393,7 +393,7 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
               const cachedEntry = poolAudio[index];
               const isCached = !!cachedEntry;
               const num = String(index + 1).padStart(3, "0");
-              const filename = `note-${num}.mp3`;
+              const filename = num;
               return (
                 <div
                   key={index}
