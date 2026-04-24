@@ -192,7 +192,7 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
     const sentences: string[] = [];
     for (const line of lines) {
       if (line.trim() === "") continue;
-      const parts = line.split(/(?<=[.!?])\s+(?=[A-Z0-9])/);
+      const parts = line.split(/(?<=[.!?])\s*(?=[A-Z])/);
       sentences.push(...parts.map((s) => s.trim()).filter((s) => s));
     }
 
