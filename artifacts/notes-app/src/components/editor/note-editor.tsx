@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, SkipForward, RotateCcw, CloudDownload, Music } from "lucide-react";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, RotateCcw, CloudDownload, Music } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { VoicePicker } from "./voice-picker";
@@ -371,25 +371,10 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
             )}
           </button>
           <button
-            onClick={startAutoPlay}
-            disabled={isLoadingPool || cached === 0}
-            className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full transition-all disabled:opacity-40 ${
-              isAutoPlaying
-                ? "bg-red-100 text-red-600 dark:bg-red-950 hover:bg-red-200"
-                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:bg-emerald-200"
-            }`}
-          >
-            {isAutoPlaying ? (
-              <><Square size={10} className="fill-current" /> বন্ধ করুন</>
-            ) : (
-              <><SkipForward size={10} /> সব Play করুন</>
-            )}
-          </button>
-          <button
             onClick={resetPool}
             className="flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-all"
           >
-            <RotateCcw size={10} /> রিসেট
+            <RotateCcw size={10} /> Reset
           </button>
         </div>
       </div>
