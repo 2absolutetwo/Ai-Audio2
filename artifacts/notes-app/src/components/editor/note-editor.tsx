@@ -724,9 +724,12 @@ export function Editor() {
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto w-full p-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Top card with Favorites and Language Search */}
-      <div className="bg-card border border-border rounded-xl shadow-sm px-4 py-2.5 flex items-center justify-end gap-2">
-        <VoicePicker selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
-        <FavoriteVoicesButton selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
+      <div className="bg-card border border-border rounded-xl shadow-sm px-4 py-2.5 flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-foreground tracking-wide">AI Voice</span>
+        <div className="flex items-center gap-2">
+          <VoicePicker selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
+          <FavoriteVoicesButton selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
+        </div>
       </div>
 
       {/* Editor Card */}
