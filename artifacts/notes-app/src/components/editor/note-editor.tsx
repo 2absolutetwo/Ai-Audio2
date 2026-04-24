@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Copy, Scissors, Undo, X, FileText, Clock, CheckCircle2, Play, Square, Loader2, Download } from "lucide-react";
-import { Project } from "@/lib/store";
-import { formatDistanceToNow } from "date-fns";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { VoicePicker } from "./voice-picker";
@@ -124,15 +122,9 @@ function LineEditor({ editorKey, value, onChange, placeholder }: LineEditorProps
   );
 }
 
-type EditorProps = {
-  project: Project;
-  updateProject: (id: string, updates: Partial<Project>) => void;
-  closeProject: () => void;
-};
-
-export function Editor({ project, updateProject, closeProject }: EditorProps) {
-  const [content, setContent] = useState<string[]>(project.content.length > 0 ? project.content : [""]);
-  const [history, setHistory] = useState<string[][]>([content]);
+export function Editor() {
+  const [content, setContent] = useState<string[]>([""]);
+  const [history, setHistory] = useState<string[][]>([[""]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isCutView, setIsCutView] = useState(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
@@ -171,39 +163,24 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
   }, []);
 
   useEffect(() => {
-    return () => {
-      stopPlayback();
-    };
+    return () => { stopPlayback(); };
   }, [stopPlayback]);
 
   const downloadLine = async (index: number, text: string) => {
     if (downloadingIndex !== null) return;
     const trimmed = text.trim();
-    if (!trimmed) {
-      toast.error("Nothing to download");
-      return;
-    }
+    if (!trimmed) { toast.error("Nothing to download"); return; }
     setDownloadingIndex(index);
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}api/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: trimmed,
-          ...(selectedVoice ? { voice: selectedVoice } : {}),
-        }),
+        body: JSON.stringify({ text: trimmed, ...(selectedVoice ? { voice: selectedVoice } : {}) }),
       });
-      if (!res.ok) {
-        throw new Error(`Request failed: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const safeTitle = (project.title || "note")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
-        .slice(0, 40) || "note";
-      const filename = `${safeTitle}-${String(index + 1).padStart(3, "0")}.mp3`;
+      const filename = `note-${String(index + 1).padStart(3, "0")}.mp3`;
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
@@ -221,39 +198,25 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
   };
 
   const playLine = async (index: number, text: string) => {
-    if (playingIndex === index || loadingIndex === index) {
-      stopPlayback();
-      return;
-    }
+    if (playingIndex === index || loadingIndex === index) { stopPlayback(); return; }
     stopPlayback();
     const trimmed = text.trim();
-    if (!trimmed) {
-      toast.error("Nothing to read");
-      return;
-    }
+    if (!trimmed) { toast.error("Nothing to read"); return; }
     setLoadingIndex(index);
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}api/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: trimmed,
-          ...(selectedVoice ? { voice: selectedVoice } : {}),
-        }),
+        body: JSON.stringify({ text: trimmed, ...(selectedVoice ? { voice: selectedVoice } : {}) }),
       });
-      if (!res.ok) {
-        throw new Error(`Request failed: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       audioUrlRef.current = url;
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.onended = () => stopPlayback();
-      audio.onerror = () => {
-        toast.error("Playback failed");
-        stopPlayback();
-      };
+      audio.onerror = () => { toast.error("Playback failed"); stopPlayback(); };
       await audio.play();
       setLoadingIndex(null);
       setPlayingIndex(index);
@@ -263,21 +226,6 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
       stopPlayback();
     }
   };
-
-  // Sync incoming project content if it changes externally
-  useEffect(() => {
-    setContent(project.content.length > 0 ? project.content : [""]);
-  }, [project.id]);
-
-  // Debounced save
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (JSON.stringify(content) !== JSON.stringify(project.content)) {
-        updateProject(project.id, { content });
-      }
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [content, project.id, project.content, updateProject]);
 
   const saveHistory = (newContent: string[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -293,15 +241,11 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
     setContent(newContent);
   };
 
-  const handleLineBlur = () => {
-    // Only save history on blur to avoid excessive history states
-    saveHistory(content);
-  };
+  const handleLineBlur = () => { saveHistory(content); };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>, index: number) => {
     const pastedText = e.clipboardData.getData("text");
     if (!pastedText) return;
-
     const lines = pastedText.split(/\r?\n/);
     const sentences: string[] = [];
     for (const line of lines) {
@@ -309,25 +253,20 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
       const parts = line.split(/(?<=[.!?])\s*(?=[A-Z])/);
       sentences.push(...parts.map((s) => s.trim()).filter((s) => s));
     }
-
     if (sentences.length <= 1) return;
-
     e.preventDefault();
     const input = e.target as HTMLInputElement;
     const cursorPos = input.selectionStart || 0;
     const currentText = content[index];
     const before = currentText.slice(0, cursorPos);
     const after = currentText.slice(input.selectionEnd || cursorPos);
-
     const newContent = [...content];
     const firstSentence = before + sentences[0];
     const lastSentence = sentences[sentences.length - 1] + after;
     const middle = sentences.slice(1, -1);
-
     newContent.splice(index, 1, firstSentence, ...middle, lastSentence);
     setContent(newContent);
     saveHistory(newContent);
-
     setTimeout(() => {
       const nextIndex = index + sentences.length - 1;
       const nextInput = containerRef.current?.querySelector(`input[data-index="${nextIndex}"]`) as HTMLInputElement;
@@ -345,16 +284,12 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
       const newContent = [...content];
       const currentText = newContent[index];
       const cursorPosition = (e.target as HTMLInputElement).selectionStart || 0;
-      
       const beforeCursor = currentText.slice(0, cursorPosition);
       const afterCursor = currentText.slice(cursorPosition);
-      
       newContent[index] = beforeCursor;
       newContent.splice(index + 1, 0, afterCursor);
       setContent(newContent);
       saveHistory(newContent);
-      
-      // Focus next input
       setTimeout(() => {
         const nextInput = containerRef.current?.querySelector(`input[data-index="${index + 1}"]`) as HTMLInputElement;
         if (nextInput) nextInput.focus();
@@ -366,8 +301,6 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
         newContent.splice(index, 1);
         setContent(newContent);
         saveHistory(newContent);
-        
-        // Focus previous input at the end
         setTimeout(() => {
           const prevInput = containerRef.current?.querySelector(`input[data-index="${index - 1}"]`) as HTMLInputElement;
           if (prevInput) {
@@ -381,12 +314,10 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
         const newContent = [...content];
         const currentText = newContent[index];
         const prevText = newContent[index - 1];
-        
         newContent[index - 1] = prevText + currentText;
         newContent.splice(index, 1);
         setContent(newContent);
         saveHistory(newContent);
-        
         setTimeout(() => {
           const prevInput = containerRef.current?.querySelector(`input[data-index="${index - 1}"]`) as HTMLInputElement;
           if (prevInput) {
@@ -429,49 +360,14 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
   };
 
   const totalLines = content.length;
-  const totalChars = content.reduce((acc, line) => acc + line.length, 0);
   const totalPtu = (content.join("\n").match(/[.?।]/g) || []).length;
 
   return (
-    <div className="flex flex-col h-full max-w-6xl mx-auto w-full p-8 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header Card */}
-      <div className="relative bg-card border border-border/60 rounded-2xl shadow-sm overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-primary/20" />
-        <div className="absolute -right-16 -top-16 w-48 h-48 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative p-6 flex items-start gap-4">
-          <div className="shrink-0 w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mt-1">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <input
-              value={project.title}
-              onChange={(e) => updateProject(project.id, { title: e.target.value })}
-              className="text-3xl md:text-4xl font-bold tracking-tight bg-transparent border-none outline-none w-full text-foreground placeholder:text-muted-foreground/60 focus:ring-0 mb-2 truncate"
-              placeholder="Project Title"
-            />
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 text-muted-foreground">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Updated {formatDistanceToNow(project.updatedAt, { addSuffix: true })}</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span className="font-medium">Auto-saved locally</span>
-              </div>
-            </div>
-          </div>
-          <div className="shrink-0 self-start mt-1 flex items-center gap-2">
-            <FavoriteVoicesButton
-              selectedVoice={selectedVoice}
-              onSelect={setSelectedVoice}
-            />
-            <VoicePicker
-              selectedVoice={selectedVoice}
-              onSelect={setSelectedVoice}
-            />
-          </div>
-        </div>
+    <div className="flex flex-col h-full max-w-4xl mx-auto w-full p-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Voice controls row */}
+      <div className="flex items-center justify-end gap-2">
+        <FavoriteVoicesButton selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
+        <VoicePicker selectedVoice={selectedVoice} onSelect={setSelectedVoice} />
       </div>
 
       {/* Editor Card */}
@@ -479,8 +375,12 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Original</span>
-            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{totalLines} {totalLines === 1 ? "line" : "lines"}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${totalPtu !== totalLines ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>{totalPtu} ptu</span>
+            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+              {totalLines} {totalLines === 1 ? "line" : "lines"}
+            </span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${totalPtu !== totalLines ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>
+              {totalPtu} ptu
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={handleCopy} title="Copy all text" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
@@ -491,9 +391,6 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
             </button>
             <button onClick={handleUndo} disabled={historyIndex === 0} title="Undo" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40">
               <Undo size={14} />
-            </button>
-            <button onClick={closeProject} title="Close" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors">
-              <X size={14} />
             </button>
           </div>
         </div>
@@ -520,6 +417,7 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
                       onChange={(e) => handleLineChange(index, e.target.value)}
                       onBlur={handleLineBlur}
                       onKeyDown={(e) => handleKeyDown(e, index)}
+                      onPaste={(e) => handlePaste(e, index)}
                       className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base"
                       placeholder={index === 0 && content.length === 1 ? "Start typing..." : ""}
                     />
@@ -531,15 +429,8 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
                       onClick={() => playLine(index, line)}
                       disabled={disabled}
                       title={isPlaying ? "Stop" : "Play"}
-                      data-testid={`button-play-${index}`}
                     >
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : isPlaying ? (
-                        <Square className="h-4 w-4 fill-current" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isPlaying ? <Square className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4" />}
                     </Button>
                     <Button
                       type="button"
@@ -549,13 +440,8 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
                       onClick={() => downloadLine(index, line)}
                       disabled={disabled || isDownloading}
                       title="Download MP3"
-                      data-testid={`button-download-${index}`}
                     >
-                      {isDownloading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
+                      {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     </Button>
                   </div>
                 );
@@ -563,7 +449,7 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
             </div>
           ) : (
             <LineEditor
-              editorKey={project.id}
+              editorKey="main"
               value={content}
               onChange={(lines) => { setContent(lines); saveHistory(lines); }}
               placeholder="Start typing..."
