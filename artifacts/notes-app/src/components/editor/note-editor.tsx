@@ -9,6 +9,121 @@ import { FavoriteVoicesButton } from "./favorite-voices-button";
 
 const VOICE_STORAGE_KEY = "tts-selected-voice";
 
+function escapeHtml(text: string) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function buildHtml(lines: string[]) {
+  if (lines.length === 0) return "<div><br></div>";
+  return lines.map((l) => `<div>${l ? escapeHtml(l) : "<br>"}</div>`).join("");
+}
+function extractLines(el: HTMLDivElement): string[] {
+  const children = Array.from(el.children) as HTMLElement[];
+  if (children.length === 0) return [""];
+  return children.map((c) => c.innerText.replace(/\n$/, ""));
+}
+function normalizePastedLines(text: string): string[] {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").map((l) => l.trim()).filter(Boolean);
+}
+
+interface LineEditorProps {
+  editorKey: string;
+  value: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+}
+function LineEditor({ editorKey, value, onChange, placeholder }: LineEditorProps) {
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const internalChange = useRef(false);
+
+  useEffect(() => {
+    if (internalChange.current) { internalChange.current = false; return; }
+    const el = innerRef.current;
+    if (!el) return;
+    const newHtml = buildHtml(value);
+    if (el.innerHTML !== newHtml) el.innerHTML = newHtml;
+  }, [value, editorKey]);
+
+  const handleInput = () => {
+    if (!innerRef.current) return;
+    internalChange.current = true;
+    onChange(extractLines(innerRef.current));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      document.execCommand("insertHTML", false, "<div><br></div>");
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData("text/plain");
+    if (!innerRef.current || !pastedText) return;
+    const pastedLines = normalizePastedLines(pastedText);
+    if (pastedLines.length === 0) return;
+
+    if (pastedLines.length === 1) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const textNode = document.createTextNode(pastedLines[0]);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        internalChange.current = true;
+        onChange(extractLines(innerRef.current));
+        return;
+      }
+    }
+
+    const sel = window.getSelection();
+    let insertAfterIdx = -1;
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      let node: Node = range.startContainer;
+      while (node.parentNode && node.parentNode !== innerRef.current) node = node.parentNode;
+      if (node.parentNode === innerRef.current) insertAfterIdx = Array.from(innerRef.current.children).indexOf(node as Element);
+    }
+
+    const existingLines = Array.from(innerRef.current.children as HTMLCollectionOf<HTMLElement>).map((c) => c.innerText.replace(/\n$/, ""));
+    let newLines: string[];
+    if (existingLines.length === 0 || (existingLines.length === 1 && existingLines[0] === "")) {
+      newLines = pastedLines;
+    } else if (insertAfterIdx === -1) {
+      newLines = [...existingLines, ...pastedLines];
+    } else {
+      newLines = [...existingLines.slice(0, insertAfterIdx + 1), ...pastedLines, ...existingLines.slice(insertAfterIdx + 1)];
+    }
+    innerRef.current.innerHTML = buildHtml(newLines);
+    internalChange.current = true;
+    onChange(extractLines(innerRef.current));
+  };
+
+  return (
+    <div
+      ref={(el) => {
+        innerRef.current = el;
+        if (el && el.innerHTML === "") el.innerHTML = buildHtml(value);
+      }}
+      key={editorKey}
+      contentEditable
+      suppressContentEditableWarning
+      data-line-editor
+      data-placeholder={placeholder}
+      onInput={handleInput}
+      onKeyDown={handleKeyDown}
+      onPaste={handlePaste}
+      className="flex-1 min-h-0 overflow-y-auto outline-none px-5 pt-4 pb-14 text-sm text-foreground"
+      style={{ minHeight: 0, scrollPaddingBottom: "3.5rem" }}
+    />
+  );
+}
+
 type EditorProps = {
   project: Project;
   updateProject: (id: string, updates: Partial<Project>) => void;
@@ -383,9 +498,9 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 relative" ref={containerRef}>
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden" ref={containerRef}>
           {isCutView ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 overflow-y-auto p-6">
               {content.map((line, index) => {
                 const isLoading = loadingIndex === index;
                 const isPlaying = playingIndex === index;
@@ -447,26 +562,12 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
               })}
             </div>
           ) : (
-            <>
-              <div className="absolute left-[3.25rem] top-6 bottom-6 w-px bg-border/50 pointer-events-none" />
-              {content.map((line, index) => (
-                <div key={index} className="flex items-start group relative">
-                  <div className="w-10 text-right pr-4 text-muted-foreground/40 group-focus-within:text-primary font-mono text-sm pt-1.5 select-none transition-colors">
-                    {index + 1}.
-                  </div>
-                  <input
-                    data-index={index}
-                    value={line}
-                    onChange={(e) => handleLineChange(index, e.target.value)}
-                    onBlur={handleLineBlur}
-                    onKeyDown={(e) => handleKeyDown(e, index)}
-                    onPaste={(e) => handlePaste(e, index)}
-                    className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base py-1.5 pl-3 min-h-[32px] rounded-md focus:bg-muted/30 transition-colors"
-                    placeholder={index === 0 && content.length === 1 ? "Start typing..." : ""}
-                  />
-                </div>
-              ))}
-            </>
+            <LineEditor
+              editorKey={project.id}
+              value={content}
+              onChange={(lines) => { setContent(lines); saveHistory(lines); }}
+              placeholder="Start typing..."
+            />
           )}
         </div>
       </div>
