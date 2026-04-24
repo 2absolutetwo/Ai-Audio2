@@ -4,7 +4,6 @@ import { Project } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { VoicePicker } from "./voice-picker";
 import { FavoriteVoicesButton } from "./favorite-voices-button";
 
@@ -316,6 +315,7 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
 
   const totalLines = content.length;
   const totalChars = content.reduce((acc, line) => acc + line.length, 0);
+  const totalPtu = (content.join("\n").match(/[.?।]/g) || []).length;
 
   return (
     <div className="flex flex-col h-full max-w-6xl mx-auto w-full p-8 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -360,27 +360,26 @@ export function Editor({ project, updateProject, closeProject }: EditorProps) {
       </div>
 
       {/* Editor Card */}
-      <div className="relative bg-card border border-border/60 rounded-2xl shadow-sm overflow-hidden flex-1 flex flex-col">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 bg-gradient-to-b from-muted/40 to-muted/10 backdrop-blur">
+      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col">
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl">
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono text-[10px] tracking-wider rounded-md px-2 py-0.5 bg-primary/10 text-primary border border-primary/20">ORIGINAL</Badge>
-            <Badge variant="outline" className="font-mono text-[10px] tracking-wider rounded-md px-2 py-0.5 border-border/60 bg-background/70 text-muted-foreground">{totalLines} lines</Badge>
-            <Badge variant="outline" className="font-mono text-[10px] tracking-wider rounded-md px-2 py-0.5 border-border/60 bg-background/70 text-muted-foreground">{totalChars} ptu</Badge>
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Original</span>
+            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{totalLines} {totalLines === 1 ? "line" : "lines"}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${totalPtu !== totalLines ? "text-red-500 bg-red-100 dark:bg-red-950" : "text-muted-foreground bg-muted"}`}>{totalPtu} ptu</span>
           </div>
-          <div className="flex items-center gap-0.5">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" onClick={handleCopy} title="Copy">
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" onClick={handleCut} title="Cut">
-              <Scissors className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" onClick={handleUndo} disabled={historyIndex === 0} title="Undo">
-              <Undo className="h-4 w-4" />
-            </Button>
-            <div className="w-px h-5 bg-border mx-1.5" />
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={closeProject} title="Close">
-              <X className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-1">
+            <button onClick={handleCopy} title="Copy all text" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <Copy size={14} />
+            </button>
+            <button onClick={handleCut} title="Split into sub-cards" className={`p-1.5 rounded-md hover:bg-muted transition-colors ${isCutView ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"}`}>
+              <Scissors size={14} />
+            </button>
+            <button onClick={handleUndo} disabled={historyIndex === 0} title="Undo" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40">
+              <Undo size={14} />
+            </button>
+            <button onClick={closeProject} title="Close" className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors">
+              <X size={14} />
+            </button>
           </div>
         </div>
 
