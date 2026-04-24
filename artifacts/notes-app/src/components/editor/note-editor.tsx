@@ -394,89 +394,91 @@ function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+      <div className="flex-1 overflow-y-auto p-3">
         {lines.length === 0 || (lines.length === 1 && !lines[0].trim()) ? (
           <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
             Cut view-এ লাইন যোগ করুন
           </div>
         ) : (
-          lines.map((line, index) => {
-            if (!line.trim()) return null;
-            const isLoading = loadingIndex === index;
-            const isPlaying = playingIndex === index;
-            const cachedEntry = poolAudio[index];
-            const isCached = !!cachedEntry;
-            const num = String(index + 1).padStart(3, "0");
-            const filename = `note-${num}.mp3`;
-            return (
-              <div
-                key={index}
-                ref={(el) => { itemRefs.current[index] = el; }}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-all ${
-                  isPlaying
-                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 shadow-sm"
-                    : isLoading
-                    ? "border-emerald-300 bg-muted/50"
-                    : "border-border bg-background hover:border-emerald-300"
-                }`}
-              >
-                <div className="text-muted-foreground/60 font-mono text-xs select-none shrink-0 w-8 text-right">
-                  {num}
-                </div>
-                <div className={`shrink-0 w-9 h-9 rounded-md flex items-center justify-center ${
-                  isPlaying || isCached
-                    ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-600"
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  {isLoading ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : isPlaying ? (
-                    <div className="flex gap-0.5 items-end">
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className="w-0.5 bg-emerald-500 rounded-full animate-bounce"
-                          style={{ height: `${4 + i * 2}px`, animationDelay: `${i * 0.1}s` }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <Music size={14} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{filename}</p>
-                  {isCached ? (
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      AUDIO · {formatBytes(cachedEntry.sizeBytes)} · {formatDuration(cachedEntry.durationSeconds)}
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground/70 truncate">
-                      {isLoading ? "Generating..." : "Not cached"}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => playSingle(index)}
-                  disabled={isAutoPlaying}
-                  className={`shrink-0 p-1.5 rounded-md transition-colors ${
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {lines.map((line, index) => {
+              if (!line.trim()) return null;
+              const isLoading = loadingIndex === index;
+              const isPlaying = playingIndex === index;
+              const cachedEntry = poolAudio[index];
+              const isCached = !!cachedEntry;
+              const num = String(index + 1).padStart(3, "0");
+              const filename = `note-${num}.mp3`;
+              return (
+                <div
+                  key={index}
+                  ref={(el) => { itemRefs.current[index] = el; }}
+                  className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 border transition-all ${
                     isPlaying
-                      ? "text-emerald-600 hover:bg-emerald-100"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  } disabled:opacity-40`}
-                  title={isPlaying ? "Stop" : "Play"}
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 shadow-sm"
+                      : isLoading
+                      ? "border-emerald-300 bg-muted/50"
+                      : "border-border bg-background hover:border-emerald-300"
+                  }`}
                 >
-                  {isLoading ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : isPlaying ? (
-                    <Square size={13} className="fill-current" />
-                  ) : (
-                    <Play size={13} />
-                  )}
-                </button>
-              </div>
-            );
-          })
+                  <div className="text-muted-foreground/60 font-mono text-[10px] select-none shrink-0">
+                    {num}
+                  </div>
+                  <div className={`shrink-0 w-6 h-6 rounded flex items-center justify-center ${
+                    isPlaying || isCached
+                      ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-600"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {isLoading ? (
+                      <Loader2 size={11} className="animate-spin" />
+                    ) : isPlaying ? (
+                      <div className="flex gap-0.5 items-end">
+                        {[1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className="w-0.5 bg-emerald-500 rounded-full animate-bounce"
+                            style={{ height: `${3 + i * 1.5}px`, animationDelay: `${i * 0.1}s` }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <Music size={11} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-foreground truncate leading-tight">{filename}</p>
+                    {isCached ? (
+                      <p className="text-[9px] text-muted-foreground truncate leading-tight">
+                        {formatBytes(cachedEntry.sizeBytes)} · {formatDuration(cachedEntry.durationSeconds)}
+                      </p>
+                    ) : (
+                      <p className="text-[9px] text-muted-foreground/70 truncate leading-tight">
+                        {isLoading ? "Generating..." : "Not cached"}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => playSingle(index)}
+                    disabled={isAutoPlaying}
+                    className={`shrink-0 p-1 rounded transition-colors ${
+                      isPlaying
+                        ? "text-emerald-600 hover:bg-emerald-100"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    } disabled:opacity-40`}
+                    title={isPlaying ? "Stop" : "Play"}
+                  >
+                    {isLoading ? (
+                      <Loader2 size={11} className="animate-spin" />
+                    ) : isPlaying ? (
+                      <Square size={11} className="fill-current" />
+                    ) : (
+                      <Play size={11} />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
