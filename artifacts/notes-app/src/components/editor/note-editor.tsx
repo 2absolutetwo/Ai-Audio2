@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Copy, Scissors, Undo, Play, Square, Loader2, Download } from "lucide-react";
+import { Copy, Scissors, Undo, Play, Square, Loader2, Download, ListMusic, SkipForward, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { VoicePicker } from "./voice-picker";
@@ -119,6 +119,251 @@ function LineEditor({ editorKey, value, onChange, placeholder }: LineEditorProps
       className="flex-1 min-h-0 overflow-y-auto outline-none px-5 pt-4 pb-14 text-sm text-foreground"
       style={{ minHeight: 0, scrollPaddingBottom: "3.5rem" }}
     />
+  );
+}
+
+interface AudioEntry {
+  url: string;
+  text: string;
+}
+
+interface AudioPoolProps {
+  lines: string[];
+  selectedVoice: string | null;
+}
+
+function AudioPool({ lines, selectedVoice }: AudioPoolProps) {
+  const [poolAudio, setPoolAudio] = useState<Record<number, AudioEntry>>({});
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoPlayRef = useRef(false);
+  const currentAutoIndexRef = useRef<number>(0);
+  const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  const validLines = lines.filter((l) => l.trim());
+
+  useEffect(() => {
+    return () => {
+      autoPlayRef.current = false;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      Object.values(poolAudio).forEach((e) => URL.revokeObjectURL(e.url));
+    };
+  }, []);
+
+  const stopAll = () => {
+    autoPlayRef.current = false;
+    setIsAutoPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    setPlayingIndex(null);
+    setLoadingIndex(null);
+  };
+
+  const fetchAudio = async (index: number, text: string): Promise<string | null> => {
+    if (poolAudio[index]) return poolAudio[index].url;
+    const res = await fetch(`${import.meta.env.BASE_URL}api/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.trim(), ...(selectedVoice ? { voice: selectedVoice } : {}) }),
+    });
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    setPoolAudio((prev) => ({ ...prev, [index]: { url, text } }));
+    return url;
+  };
+
+  const playSingle = async (index: number) => {
+    const line = lines[index];
+    if (!line?.trim()) return;
+    if (playingIndex === index && !isAutoPlaying) { stopAll(); return; }
+    stopAll();
+    setLoadingIndex(index);
+    try {
+      const url = await fetchAudio(index, line);
+      if (!url) return;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { setPlayingIndex(null); setLoadingIndex(null); };
+      audio.onerror = () => { toast.error("Playback failed"); stopAll(); };
+      await audio.play();
+      setLoadingIndex(null);
+      setPlayingIndex(index);
+      itemRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch {
+      toast.error("Could not generate voice");
+      stopAll();
+    }
+  };
+
+  const playNextAuto = async (index: number) => {
+    if (!autoPlayRef.current) return;
+    const realLines = lines.map((l, i) => ({ text: l, i })).filter((x) => x.text.trim());
+    const entry = realLines.find((x) => x.i === index);
+    if (!entry) { stopAll(); return; }
+
+    setLoadingIndex(index);
+    setPlayingIndex(null);
+    itemRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    try {
+      const url = await fetchAudio(index, entry.text);
+      if (!url || !autoPlayRef.current) { stopAll(); return; }
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        if (!autoPlayRef.current) { setPlayingIndex(null); setLoadingIndex(null); return; }
+        const nextEntry = realLines.find((x) => x.i > index);
+        if (nextEntry) {
+          playNextAuto(nextEntry.i);
+        } else {
+          stopAll();
+          toast.success("All lines played!");
+        }
+      };
+      audio.onerror = () => { toast.error("Playback failed"); stopAll(); };
+      await audio.play();
+      setLoadingIndex(null);
+      setPlayingIndex(index);
+    } catch {
+      if (autoPlayRef.current) toast.error("Could not generate voice");
+      stopAll();
+    }
+  };
+
+  const startAutoPlay = () => {
+    if (isAutoPlaying) { stopAll(); return; }
+    const realLines = lines.map((l, i) => ({ text: l, i })).filter((x) => x.text.trim());
+    if (realLines.length === 0) { toast.error("No lines to play"); return; }
+    stopAll();
+    autoPlayRef.current = true;
+    setIsAutoPlaying(true);
+    playNextAuto(realLines[0].i);
+  };
+
+  const resetPool = () => {
+    stopAll();
+    Object.values(poolAudio).forEach((e) => URL.revokeObjectURL(e.url));
+    setPoolAudio({});
+    toast.success("Audio pool cleared");
+  };
+
+  const total = validLines.length;
+  const cached = Object.keys(poolAudio).length;
+
+  return (
+    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col" style={{ maxHeight: "340px" }}>
+      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl">
+        <div className="flex items-center gap-2">
+          <ListMusic size={14} className="text-emerald-500" />
+          <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Audio Pool</span>
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+            total : {total}
+          </span>
+          {cached > 0 && (
+            <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded-full">
+              {cached} cached
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={startAutoPlay}
+            className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full transition-all ${
+              isAutoPlaying
+                ? "bg-red-100 text-red-600 dark:bg-red-950 hover:bg-red-200"
+                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:bg-emerald-200"
+            }`}
+          >
+            {isAutoPlaying ? (
+              <><Square size={10} className="fill-current" /> Stop</>
+            ) : (
+              <><SkipForward size={10} /> Auto Play</>
+            )}
+          </button>
+          <button
+            onClick={resetPool}
+            className="flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-all"
+          >
+            <RotateCcw size={10} /> Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+        {lines.length === 0 || (lines.length === 1 && !lines[0].trim()) ? (
+          <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+            Cut view-এ লাইন যোগ করুন
+          </div>
+        ) : (
+          lines.map((line, index) => {
+            if (!line.trim()) return null;
+            const isLoading = loadingIndex === index;
+            const isPlaying = playingIndex === index;
+            const isCached = !!poolAudio[index];
+            return (
+              <div
+                key={index}
+                ref={(el) => { itemRefs.current[index] = el; }}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-all ${
+                  isPlaying
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 shadow-sm"
+                    : isLoading
+                    ? "border-emerald-300 bg-muted/50"
+                    : "border-border bg-background hover:border-emerald-300"
+                }`}
+              >
+                <div className="text-muted-foreground/60 font-mono text-xs select-none shrink-0 w-8 text-right">
+                  {String(index + 1).padStart(3, "0")}
+                </div>
+                {isCached && !isPlaying && !isLoading && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Cached" />
+                )}
+                {isPlaying && (
+                  <div className="flex gap-0.5 items-end shrink-0">
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="w-0.5 bg-emerald-500 rounded-full animate-bounce"
+                        style={{ height: `${6 + i * 3}px`, animationDelay: `${i * 0.1}s` }}
+                      />
+                    ))}
+                  </div>
+                )}
+                {isLoading && <Loader2 size={12} className="animate-spin text-emerald-500 shrink-0" />}
+                <p className="flex-1 text-sm text-foreground truncate">{line}</p>
+                <button
+                  onClick={() => playSingle(index)}
+                  disabled={isAutoPlaying}
+                  className={`shrink-0 p-1.5 rounded-md transition-colors ${
+                    isPlaying
+                      ? "text-emerald-600 hover:bg-emerald-100"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  } disabled:opacity-40`}
+                  title={isPlaying ? "Stop" : "Play"}
+                >
+                  {isLoading ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : isPlaying ? (
+                    <Square size={13} className="fill-current" />
+                  ) : (
+                    <Play size={13} />
+                  )}
+                </button>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -371,7 +616,7 @@ export function Editor() {
       </div>
 
       {/* Editor Card */}
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col">
+      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border bg-card rounded-t-xl">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Original</span>
@@ -457,6 +702,11 @@ export function Editor() {
           )}
         </div>
       </div>
+
+      {/* Audio Pool Card */}
+      {isCutView && (
+        <AudioPool lines={content} selectedVoice={selectedVoice} />
+      )}
     </div>
   );
 }
